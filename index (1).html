@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070816">
+<meta name="description" content="Paradixe, un mundo 3D compartido para recorrer con otras personas.">
+<title>Plaza Paradixe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=DM+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: mundo 3D a pantalla completa, HUD ligero arriba y abajo, joystick táctil a la izquierda. */
+:root {
+  --bg: #070816;
+  --ink: #e8ecff;
+  --muted: #98a0cf;
+  --accent: #ffb347;
+  --portal: #4fe3ff;
+  --panel: rgba(12, 14, 38, 0.66);
+  --line: rgba(152, 160, 207, 0.28);
+  --font-display: "Chakra Petch", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; background: var(--bg); }
+
+#top, #bottom {
+  position: fixed; left: 0; right: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+  display: flex; justify-content: space-between; gap: 12px;
+}
+#top { top: 0; padding-top: calc(env(safe-area-inset-top, 0px) + 12px); align-items: flex-start; }
+#bottom { bottom: 0; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); align-items: flex-end; }
+
+.brand { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.brand b { font: 600 22px/1 var(--font-display); letter-spacing: 0.32em; color: var(--accent); }
+.brand span { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+
+.pill {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: 500 12px/1.2 var(--font-display);
+  letter-spacing: 0.06em;
+  display: flex; align-items: center; gap: 8px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: #5dffb0; box-shadow: 0 0 8px #5dffb0; }
+.pill small { color: var(--muted); font: 400 11px var(--font-body); letter-spacing: 0; }
+
+#toast {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px);
+  transform: translateX(-50%);
+  max-width: min(92vw, 420px);
+  background: var(--panel);
+  border: 1px solid var(--portal);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px; line-height: 1.35; text-align: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+#toast b { font-family: var(--font-display); color: var(--portal); letter-spacing: 0.06em; }
+
+#stick {
+  pointer-events: auto; touch-action: none;
+  position: relative; width: 124px; height: 124px; flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 227, 255, 0.10), rgba(12, 14, 38, 0.55));
+  border: 1.5px solid var(--line);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+#knob {
+  position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--portal); opacity: 0.85;
+  box-shadow: 0 0 18px rgba(79, 227, 255, 0.55);
+}
+
+.right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0; }
+.hint { font-size: 12px; color: var(--muted); text-align: right; max-width: 190px; line-height: 1.4; text-shadow: 0 1px 6px #000; }
+.nick {
+  pointer-events: auto; display: flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+  padding: 3px 6px 3px 12px;
+  font: 500 11px/1 var(--font-display); letter-spacing: 0.08em; color: var(--muted);
+}
+.nick:focus-within { border-color: var(--portal); }
+.nick input {
+  width: 108px; background: transparent; border: 0; outline: none; text-align: right;
+  color: var(--ink); font: 500 16px/1.2 var(--font-display); padding: 5px 8px;
+  -webkit-user-select: text; user-select: text;
+}
+#swatches { pointer-events: auto; display: flex; gap: 8px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; }
+#swatches button {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer;
+  outline-offset: 2px;
+}
+#swatches button[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 10px rgba(232, 236, 255, 0.5); }
+#swatches button:focus-visible { outline: 2px solid var(--portal); }
+
+#nogl { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; background: var(--bg); color: var(--ink); line-height: 1.5; }
+
+@media (min-width: 720px) { #stick { display: none; } .hint { max-width: 320px; } }
+@media (pointer: coarse) { #stick { display: block; } }
+
+/* --- Chat de proximidad v0.2 --- */
+#chat {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 148px);
+  width: min(360px, 68vw);
+  max-height: 32vh;
+  display: flex; flex-direction: column; gap: 6px;
+  pointer-events: auto;
+  z-index: 5;
+}
+#chatLog {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 10px;
+  max-height: 22vh;
+  overflow-y: auto;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; gap: 4px;
+  scrollbar-width: thin;
+}
+#chatLog::-webkit-scrollbar { width: 6px; }
+#chatLog::-webkit-scrollbar-thumb { background: rgba(152,160,207,0.3); border-radius: 99px; }
+.msg { font-size: 12.5px; line-height: 1.35; word-break: break-word; }
+.msg b { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.02em; }
+.msg.sys { color: var(--muted); font-style: italic; }
+.msg.me { opacity: 0.95; }
+#chatInputWrap {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 6px 4px 14px;
+}
+#chatInputWrap:focus-within { border-color: var(--portal); }
+#chatInput {
+  flex: 1; background: transparent; border: 0; outline: none;
+  color: var(--ink); font: 400 14px/1.2 var(--font-body);
+  -webkit-user-select: text; user-select: text;
+}
+#chatSend {
+  width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--portal); color: #051018; font: 600 14px var(--font-display);
+  display: grid; place-items: center;
+}
+#chatToggle {
+  display: none;
+}
+@media (max-width: 720px) {
+  #chat { width: min(92vw, 360px); bottom: calc(env(safe-area-inset-bottom, 0px) + 162px); }
+  #chatLog { max-height: 18vh; }
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="c" aria-label="Plaza central de Paradixe, un mundo 3D"></canvas>
+
+<div id="top">
+  <div class="brand"><b>PARADIXE</b><span>Plaza Central · versión 0.1</span></div>
+  <div class="pill"><i></i><span id="count">1 en línea</span><small id="sub">modo solo</small></div>
+</div>
+<div id="toast" hidden></div>
+
+<div id="chat">
+  <div id="chatLog" aria-live="polite"></div>
+  <div id="chatInputWrap"><input id="chatInput" type="text" maxlength="120" autocomplete="off" placeholder="Chat de proximidad (cerca)..."><button id="chatSend" aria-label="Enviar">↗</button></div>
+</div>
+
+<div id="bottom">
+  <div id="stick" aria-label="Joystick para caminar"><div id="knob"></div></div>
+  <div class="right">
+    <div class="hint" id="hint">Arrastra la pantalla para mirar. Camina con el joystick.</div>
+    <label class="nick" for="nick">TU NOMBRE<input id="nick" type="text" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <div id="swatches" role="group" aria-label="Color del avatar"></div>
+  </div>
+</div>
+<div id="nogl" hidden>Este dispositivo no pudo iniciar gráficos 3D (WebGL). Prueba abrir el enlace en Chrome.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var TAU = Math.PI * 2;
+  var myId = null;
+  var canvas = document.getElementById('c');
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  } catch (err) {
+    document.getElementById('nogl').hidden = false;
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var reduceMotion = false;
+  try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0c26);
+  scene.fog = new THREE.FogExp2(0x0a0c26, 0.013);
+  var camera = new THREE.PerspectiveCamera(62, 1, 0.1, 500);
+
+  scene.add(new THREE.HemisphereLight(0x8fa0ff, 0x1a1030, 0.95));
+  var sun = new THREE.DirectionalLight(0xffd6a0, 0.55);
+  sun.position.set(-30, 50, 20);
+  scene.add(sun);
+
+  /* ---------- utilidades ---------- */
+  function angDiff(a, b) {
+    var d = (b - a) % TAU;
+    if (d > Math.PI) d -= TAU;
+    if (d < -Math.PI) d += TAU;
+    return d;
+  }
+
+  function label(text, opts) {
+    opts = opts || {};
+    var w = opts.w || 256, h = opts.h || 64;
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var g = c.getContext('2d');
+    if (opts.bg) { g.fillStyle = opts.bg; g.fillRect(0, 0, w, h); }
+    g.font = (opts.weight || 600) + ' ' + (opts.px || 30) + 'px "Chakra Petch", "Trebuchet MS", sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = opts.color || '#e8ecff';
+    g.fillText(text, w / 2, h / 2 + 2);
+    var tex = new THREE.CanvasTexture(c);
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false });
+    var s = new THREE.Sprite(mat);
+    var size = opts.size || 0.7;
+    s.scale.set(size * (w / h), size, 1);
+    return s;
+  }
+
+  /* ---------- cielo ---------- */
+  var starPos = new Float32Array(900 * 3);
+  for (var i = 0; i < 900; i++) {
+    var th = Math.random() * TAU, ph = Math.acos(Math.random() * 0.95 + 0.05);
+    var rr = 300;
+    starPos[i * 3] = rr * Math.sin(ph) * Math.cos(th);
+    starPos[i * 3 + 1] = rr * Math.cos(ph);
+    starPos[i * 3 + 2] = rr * Math.sin(ph) * Math.sin(th);
+  }
+  var starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xdfe6ff, size: 1.8, sizeAttenuation: false, fog: false })));
+
+  var planet = new THREE.Mesh(new THREE.SphereGeometry(26, 32, 24), new THREE.MeshBasicMaterial({ color: 0x4a5cff, fog: false }));
+  planet.position.set(-120, 70, -170);
+  scene.add(planet);
+  var planetRing = new THREE.Mesh(new THREE.RingGeometry(36, 46, 64), new THREE.MeshBasicMaterial({ color: 0xff8fd0, side: THREE.DoubleSide, transparent: true, opacity: 0.55, fog: false }));
+  planetRing.position.copy(planet.position);
+  planetRing.rotation.x = 1.2; planetRing.rotation.y = 0.3;
+  scene.add(planetRing);
+
+  /* ---------- suelo y plaza ---------- */
+  var ground = new THREE.Mesh(new THREE.CircleGeometry(140, 64), new THREE.MeshStandardMaterial({ color: 0x0d0f2c, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+  var grid = new THREE.GridHelper(280, 70, 0x2b3a99, 0x1a2066);
+  grid.position.y = 0.02;
+  scene.add(grid);
+
+  var plaza = new THREE.Mesh(new THREE.CircleGeometry(36, 96), new THREE.MeshStandardMaterial({ color: 0x151843, roughness: 0.9 }));
+  plaza.rotation.x = -Math.PI / 2; plaza.position.y = 0.05;
+  scene.add(plaza);
+
+  [8, 16, 24].forEach(function (r, idx) {
+    var ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.12, r + 0.12, 96), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.55 - idx * 0.12 }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08;
+    scene.add(ring);
+  });
+  var edge = new THREE.Mesh(new THREE.RingGeometry(35.7, 36.3, 128), new THREE.MeshBasicMaterial({ color: 0x4fe3ff }));
+  edge.rotation.x = -Math.PI / 2; edge.position.y = 0.1;
+  scene.add(edge);
+
+  var bollGeo = new THREE.CylinderGeometry(0.22, 0.28, 1.1, 10);
+  var bollMat = new THREE.MeshStandardMaterial({ color: 0x1b2070, emissive: 0x4fe3ff, emissiveIntensity: 0.9 });
+  for (var b = 0; b < 32; b++) {
+    var bm = new THREE.Mesh(bollGeo, bollMat);
+    var ba = (b / 32) * TAU;
+    bm.position.set(Math.cos(ba) * 36, 0.55, Math.sin(ba) * 36);
+    scene.add(bm);
+  }
+
+  /* ---------- monumento central ---------- */
+  var monument = new THREE.Group();
+  var baseM = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3, 1.4, 6), new THREE.MeshStandardMaterial({ color: 0x23286a, roughness: 0.6 }));
+  baseM.position.y = 0.7;
+  monument.add(baseM);
+  var crystal = new THREE.Mesh(new THREE.OctahedronGeometry(1.7), new THREE.MeshStandardMaterial({ color: 0xffb347, emissive: 0xff9a2e, emissiveIntensity: 0.9, roughness: 0.3 }));
+  crystal.position.y = 5;
+  monument.add(crystal);
+  var cage = new THREE.Mesh(new THREE.OctahedronGeometry(2.7), new THREE.MeshBasicMaterial({ color: 0xffd9a0, wireframe: true, transparent: true, opacity: 0.6 }));
+  cage.position.y = 5;
+  monument.add(cage);
+  var beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 120, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  beam.position.y = 60;
+  monument.add(beam);
+  var glow = new THREE.PointLight(0xffa640, 1.6, 40);
+  glow.position.y = 5;
+  monument.add(glow);
+  var title = label('PARADIXE', { w: 512, h: 128, px: 72, weight: 600, color: '#ffb347', size: 3.2 });
+  title.position.y = 9.6;
+  monument.add(title);
+  scene.add(monument);
+
+  /* ---------- edificios ---------- */
+  function windowTexture() {
+    var c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    var g = c.getContext('2d');
+    g.fillStyle = '#000'; g.fillRect(0, 0, 128, 128);
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        if (Math.random() < 0.52) {
+          g.fillStyle = Math.random() < 0.2 ? '#ffb347' : '#7fb0ff';
+          g.fillRect(x * 16 + 4, y * 16 + 4, 8, 9);
+        }
+      }
+    }
+    var t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  }
+  for (var k = 0; k < 18; k++) {
+    var w = 6 + Math.random() * 6, d = 6 + Math.random() * 6, h = 12 + Math.random() * 28;
+    var tex = windowTexture();
+    tex.repeat.set(Math.max(1, Math.round(w / 6)), Math.max(1, Math.round(h / 6)));
+    var mat = new THREE.MeshStandardMaterial({ color: 0x141838, roughness: 0.8, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9 });
+    var bld = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    var a = (k / 18) * TAU + (Math.random() - 0.5) * 0.15;
+    var rad = 46 + Math.random() * 16;
+    bld.position.set(Math.cos(a) * rad, h / 2, Math.sin(a) * rad);
+    bld.rotation.y = -a;
+    scene.add(bld);
+    var cap = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, 0.35, d + 0.4), new THREE.MeshBasicMaterial({ color: k % 3 === 0 ? 0xff5fa8 : 0x4fe3ff }));
+    cap.position.set(bld.position.x, h + 0.17, bld.position.z);
+    cap.rotation.y = -a;
+    scene.add(cap);
+  }
+
+  /* ---------- portales ---------- */
+  var portalDefs = [
+    { name: 'Arcadia', note: 'Mundo de juegos', color: 0x4fe3ff, css: '#4fe3ff', ang: Math.PI * 0.25 },
+    { name: 'Selva Viva', note: 'Mundo de naturaleza', color: 0x7dffb2, css: '#7dffb2', ang: Math.PI * 0.75 },
+    { name: 'Ciudad Neón', note: 'Mundo social', color: 0xff5fa8, css: '#ff5fa8', ang: Math.PI * 1.25 },
+    { name: 'Archivo', note: 'Biblioteca de creadores', color: 0x9a7bff, css: '#9a7bff', ang: Math.PI * 1.75 }
+  ];
+  var portals = portalDefs.map(function (def) {
+    var g = new THREE.Group();
+    var torus = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.24, 14, 56), new THREE.MeshStandardMaterial({ color: 0x15184a, emissive: def.color, emissiveIntensity: 1.1 }));
+    torus.position.y = 3.6;
+    g.add(torus);
+    var disc = new THREE.Mesh(new THREE.CircleGeometry(3.05, 48), new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+    disc.position.y = 3.6;
+    g.add(disc);
+    var foot = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.9, 0.35, 32), new THREE.MeshStandardMaterial({ color: 0x1b2070, emissive: def.color, emissiveIntensity: 0.25 }));
+    foot.position.y = 0.17;
+    g.add(foot);
+    var lt = new THREE.PointLight(def.color, 1.1, 18);
+    lt.position.y = 3.6;
+    g.add(lt);
+    var tag = label(def.name, { w: 384, h: 96, px: 44, color: def.css, size: 1.1 });
+    tag.position.y = 7.6;
+    g.add(tag);
+    g.position.set(Math.cos(def.ang) * 24, 0, Math.sin(def.ang) * 24);
+    g.lookAt(0, 0, 0);
+    scene.add(g);
+    return { def: def, group: g, disc: disc, torus: torus, cool: 0 };
+  });
+
+  /* ---------- avatares ---------- */
+  function makeAvatar(color, name) {
+    var g = new THREE.Group();
+    var bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.1, emissive: color, emissiveIntensity: 0.14 });
+    var body = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.32, 0.9, 14), bodyMat);
+    body.position.y = 1.15;
+    g.add(body);
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 14), new THREE.MeshStandardMaterial({ color: 0xe9ecff, roughness: 0.4 }));
+    head.position.y = 1.85;
+    g.add(head);
+    var visor = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.13, 0.12), new THREE.MeshBasicMaterial({ color: 0x4fe3ff }));
+    visor.position.set(0, 1.88, 0.25);
+    g.add(visor);
+    function limb(x, y, wid, hei) {
+      var pivot = new THREE.Group();
+      pivot.position.set(x, y, 0);
+      var m = new THREE.Mesh(new THREE.BoxGeometry(wid, hei, wid), bodyMat);
+      m.position.y = -hei / 2;
+      pivot.add(m);
+      g.add(pivot);
+      return pivot;
+    }
+    var legL = limb(-0.17, 0.72, 0.2, 0.72);
+    var legR = limb(0.17, 0.72, 0.2, 0.72);
+    var armL = limb(-0.46, 1.52, 0.16, 0.66);
+    var armR = limb(0.46, 1.52, 0.16, 0.66);
+    g.userData = { legL: legL, legR: legR, armL: armL, armR: armR, bodyMat: bodyMat, walk: 0, tag: null };
+    setAvatarName(g, name);
+    return g;
+  }
+  function setAvatarName(av, name) {
+    var old = av.userData.tag;
+    if (old) { av.remove(old); old.material.map.dispose(); old.material.dispose(); }
+    var tag = label(name, { w: 256, h: 64, px: 30, size: 0.5, bg: 'rgba(10,12,34,0.7)' });
+    tag.position.y = 2.6;
+    av.add(tag);
+    av.userData.tag = tag;
+  }
+  function disposeAvatar(av) {
+    av.traverse(function (o) {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    });
+  }
+  function animateAvatar(av, moving, t, dt) {
+    var u = av.userData;
+    u.walk += (moving - u.walk) * Math.min(1, dt * 10);
+    var sw = Math.sin(t * 9) * 0.75 * u.walk;
+    u.legL.rotation.x = sw; u.legR.rotation.x = -sw;
+    u.armL.rotation.x = -sw * 0.8; u.armR.rotation.x = sw * 0.8;
+    av.children[0].position.y = 1.15 + Math.abs(Math.sin(t * 9)) * 0.04 * u.walk;
+  }
+
+  var swatchColors = [0xffb347, 0x4fe3ff, 0xff5fa8, 0x7dffb2, 0x9a7bff, 0xf2f4ff];
+  var curColor = 0;
+  var player = makeAvatar(swatchColors[0], 'Tú');
+  player.position.set(0, 0, 14);
+  scene.add(player);
+  var facing = 0;
+
+  var botNames = ['Kira', 'Tavo', 'Luna', 'Mateo', 'Sol'];
+  var bots = botNames.map(function (nm, idx) {
+    var av = makeAvatar(swatchColors[(idx + 1) % swatchColors.length], nm);
+    var ang = Math.random() * TAU, r = 10 + Math.random() * 20;
+    av.position.set(Math.cos(ang) * r, 0, Math.sin(ang) * r);
+    scene.add(av);
+    return { av: av, target: new THREE.Vector3(), wait: Math.random() * 2, speed: 1.8 + Math.random() * 1.2, moving: 0 };
+  });
+  function pickTarget(bot) {
+    var ang = Math.random() * TAU, r = 7 + Math.random() * 26;
+    bot.target.set(Math.cos(ang) * r, 0, Math.sin(ang) * r);
+  }
+  bots.forEach(pickTarget);
+
+  /* ---------- controles ---------- */
+  var keys = {};
+  var joy = { x: 0, y: 0 };
+  var yaw = 0.5, pitch = 0.36, dist = 8;
+
+  function typing(e) { return e.target && e.target.tagName === 'INPUT'; }
+  window.addEventListener('keydown', function (e) { if (typing(e)) return; keys[e.key.toLowerCase()] = true; });
+  window.addEventListener('keyup', function (e) { if (typing(e)) return; keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('blur', function () { keys = {}; });
+
+  var lookId = null, lx = 0, ly = 0;
+  canvas.addEventListener('pointerdown', function (e) {
+    if (lookId !== null) return;
+    lookId = e.pointerId; lx = e.clientX; ly = e.clientY;
+    try { canvas.setPointerCapture(e.pointerId); } catch (er) {}
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (e.pointerId !== lookId) return;
+    yaw -= (e.clientX - lx) * 0.0055;
+    pitch = Math.max(0.08, Math.min(1.2, pitch + (e.clientY - ly) * 0.0042));
+    lx = e.clientX; ly = e.clientY;
+  });
+  function endLook(e) { if (e.pointerId === lookId) lookId = null; }
+  canvas.addEventListener('pointerup', endLook);
+  canvas.addEventListener('pointercancel', endLook);
+  canvas.addEventListener('wheel', function (e) {
+    dist = Math.max(4, Math.min(14, dist + e.deltaY * 0.01));
+    e.preventDefault();
+  }, { passive: false });
+
+  var stick = document.getElementById('stick');
+  var knob = document.getElementById('knob');
+  var stickId = null;
+  function moveStick(e) {
+    var r = stick.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var dx = e.clientX - cx, dy = e.clientY - cy;
+    var max = r.width / 2 - 14;
+    var dd = Math.hypot(dx, dy);
+    if (dd > max) { dx *= max / dd; dy *= max / dd; }
+    joy.x = dx / max; joy.y = dy / max;
+    knob.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+  }
+  stick.addEventListener('pointerdown', function (e) {
+    stickId = e.pointerId;
+    try { stick.setPointerCapture(e.pointerId); } catch (er) {}
+    moveStick(e);
+    e.preventDefault();
+  });
+  stick.addEventListener('pointermove', function (e) { if (e.pointerId === stickId) moveStick(e); });
+  function endStick(e) {
+    if (e.pointerId !== stickId) return;
+    stickId = null; joy.x = 0; joy.y = 0;
+    knob.style.transform = 'translate(-50%, -50%)';
+  }
+  stick.addEventListener('pointerup', endStick);
+  stick.addEventListener('pointercancel', endStick);
+
+  var swWrap = document.getElementById('swatches');
+  var swNames = ['ámbar', 'cian', 'rosa', 'verde', 'violeta', 'blanco'];
+  swatchColors.forEach(function (col, idx) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'sw' + idx;
+    btn.setAttribute('aria-label', 'Avatar ' + swNames[idx]);
+    btn.setAttribute('aria-pressed', idx === 0 ? 'true' : 'false');
+    btn.style.background = '#' + col.toString(16).padStart(6, '0');
+    btn.addEventListener('click', function () {
+      curColor = idx;
+      player.userData.bodyMat.color.setHex(col);
+      player.userData.bodyMat.emissive.setHex(col);
+      Array.prototype.forEach.call(swWrap.children, function (c, j) { c.setAttribute('aria-pressed', j === idx ? 'true' : 'false'); });
+    });
+    swWrap.appendChild(btn);
+  });
+
+  /* ---------- multijugador (capacidad room) ---------- */
+  var countEl = document.getElementById('count');
+  var subEl = document.getElementById('sub');
+  var nickEl = document.getElementById('nick');
+  var room = null, otherCount = 0, lastSent = '', sendClock = 0;
+  var remotes = {};
+
+  function cleanName(s) {
+    return String(s == null ? '' : s).replace(/[^A-Za-z0-9À-ɏ _.\-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12);
+  }
+  var myName = '';
+  try { myName = cleanName(localStorage.getItem('oasis-name')); } catch (e) {}
+  if (!myName) myName = 'Jugador' + (100 + Math.floor(Math.random() * 900));
+  nickEl.value = myName;
+  nickEl.addEventListener('input', function () {
+    var v = cleanName(nickEl.value);
+    myName = v || 'Jugador';
+    try { localStorage.setItem('oasis-name', v); } catch (e) {}
+  });
+  nickEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') nickEl.blur(); });
+
+  function clampWorld(x, z) {
+    var r = Math.hypot(x, z);
+    if (r > 35) { x *= 35 / r; z *= 35 / r; }
+    return [x, z];
+  }
+  function updateCounter() {
+    bots.forEach(function (b) { b.av.visible = otherCount === 0; });
+    countEl.textContent = (1 + otherCount) + ' en línea';
+    subEl.textContent = !room ? 'modo solo · 5 simulados' : (otherCount === 0 ? '5 simulados' : 'en vivo');
+  }
+  function applyPeers(list) {
+    var seen = {}, count = 0;
+    list.forEach(function (p) {
+      if (p.isMe || p.kind !== 'viewer') return;
+      var pr = p.presence || {};
+      if (typeof pr.x !== 'number' || typeof pr.z !== 'number' || !isFinite(pr.x) || !isFinite(pr.z)) return;
+      count++;
+      seen[p.peer] = true;
+      var pos = clampWorld(pr.x, pr.z);
+      var nm = cleanName(pr.n) || 'Jugador';
+      var ci = (typeof pr.c === 'number' && pr.c >= 0 && pr.c < swatchColors.length) ? Math.floor(pr.c) : 1;
+      var r = remotes[p.peer];
+      if (!r) {
+        var av = makeAvatar(swatchColors[ci], nm);
+        av.position.set(pos[0], 0, pos[1]);
+        scene.add(av);
+        r = remotes[p.peer] = { av: av, tx: pos[0], tz: pos[1], ta: 0, name: nm, ci: ci };
+      }
+      r.tx = pos[0]; r.tz = pos[1];
+      if (typeof pr.a === 'number' && isFinite(pr.a)) r.ta = pr.a;
+      if (r.name !== nm) { r.name = nm; setAvatarName(r.av, nm); }
+      if (r.ci !== ci) {
+        r.ci = ci;
+        r.av.userData.bodyMat.color.setHex(swatchColors[ci]);
+        r.av.userData.bodyMat.emissive.setHex(swatchColors[ci]);
+      }
+    });
+    Object.keys(remotes).forEach(function (id) {
+      if (!seen[id]) { scene.remove(remotes[id].av); disposeAvatar(remotes[id].av); delete remotes[id]; }
+    });
+    otherCount = count;
+    updateCounter();
+  }
+  updateCounter();
+  /* Conexión propia por WebSocket: el servidor (server.js) reparte las posiciones. */
+  var peerMap = {}, ws = null, retries = 0;
+  function emitPeers() {
+    applyPeers(Object.keys(peerMap).map(function (id) {
+      return { peer: id, isMe: false, kind: 'viewer', presence: peerMap[id] };
+    }));
+  }
+  function readPlayers(list) {
+    (list || []).forEach(function (q) {
+      if (Array.isArray(q) && q.length >= 6) peerMap[q[0]] = { x: q[1], z: q[2], a: q[3], c: q[4], n: q[5] };
+    });
+  }
+  function scheduleRetry() {
+    retries++;
+    setTimeout(connect, Math.min(15000, 800 * Math.pow(1.6, retries)));
+  }
+  function connect() {
+    var sock;
+    try {
+      sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+    } catch (e) { scheduleRetry(); return; }
+    ws = sock;
+    sock.onopen = function () {
+      retries = 0;
+      lastSent = '';
+      room = {
+        presence: function (o) {
+          if (sock.readyState === 1) sock.send(JSON.stringify({ t: 'p', x: o.x, z: o.z, a: o.a, c: o.c, n: o.n }));
+          return Promise.resolve();
+        }
+      };
+      updateCounter();
+    };
+    sock.onmessage = function (ev) {
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (!m || typeof m !== 'object') return;
+      if (m.t === 'hello') { myId = m.id; peerMap = {}; readPlayers(m.p); emitPeers(); updateCounter(); addChatMsg({ sys: true, text: 'Conectado como ' + myName }); }
+      else if (m.t === 's') { readPlayers(m.p); emitPeers(); }
+      else if (m.t === 'l') { delete peerMap[m.id]; emitPeers(); updateCounter(); }
+      else if (m.t === 'c') {
+        // chat proximidad
+        var isMe = (m.id === myId);
+        addChatMsg({ n: m.n, c: m.c, text: m.text, me: isMe });
+      } else if (m.t === 'sys') {
+        addChatMsg({ sys: true, text: m.text });
+      }
+    };
+    sock.onclose = function () {
+      if (ws === sock) { room = null; peerMap = {}; applyPeers([]); scheduleRetry(); }
+    };
+    sock.onerror = function () { try { sock.close(); } catch (e) {} };
+  }
+  connect();
+
+
+  /* ---------- chat de proximidad v0.2 ---------- */
+  var chatLog = document.getElementById('chatLog');
+  var chatInput = document.getElementById('chatInput');
+  var chatSend = document.getElementById('chatSend');
+  var colorHex = ['#ff7a5c','#ffd25c','#7dffb2','#4fe3ff','#9a7bff','#ff5fa8'];
+  function addChatMsg(o) {
+    var div = document.createElement('div');
+    div.className = 'msg' + (o.sys ? ' sys' : '') + (o.me ? ' me' : '');
+    if (o.sys) {
+      div.textContent = o.text;
+    } else {
+      var b = document.createElement('b');
+      var col = colorHex[o.c] || '#e8ecff';
+      b.style.color = col;
+      b.textContent = o.n || 'Jugador';
+      div.appendChild(b);
+      div.appendChild(document.createTextNode(': ' + o.text));
+    }
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    // limita a 80 mensajes
+    while (chatLog.children.length > 80) chatLog.removeChild(chatLog.firstChild);
+  }
+  window.addChatMsg = addChatMsg;
+
+  var isChatFocused = false;
+  chatInput.addEventListener('focus', function(){ isChatFocused = true; });
+  chatInput.addEventListener('blur', function(){ isChatFocused = false; });
+
+  function sendChat() {
+    var txt = chatInput.value.trim();
+    if (!txt) return;
+    if (txt.length > 120) txt = txt.slice(0,120);
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ t: 'c', text: txt }));
+    } else {
+      addChatMsg({ sys: true, text: 'Sin conexión — mensaje guardado local' });
+      addChatMsg({ n: myName, c: curColor, text: txt, me: true });
+    }
+    chatInput.value = '';
+  }
+  chatSend.addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+  });
+
+  // Mensaje bienvenida
+  addChatMsg({ sys: true, text: 'Chat de proximidad activo — solo te leen jugadores cerca (18m).' });
+
+
+  /* ---------- aviso de portales ---------- */
+  var toast = document.getElementById('toast');
+  var toastTimer = null;
+  function showToast(def) {
+    toast.innerHTML = '<b>Próximamente: ' + def.name + '</b><br>' + def.note + '.<br><span style="font-size:11px;color:var(--muted)">Este portal se abrirá en la fase de mundos conectados.</span>';
+    toast.style.borderColor = def.css;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.hidden = true; }, 4200);
+    // También mensaje en chat sistema
+    if (window.addChatMsg) addChatMsg({ sys: true, text: 'Portal ' + def.name + ' — Próximamente' });
+  }
+
+  /* ---------- bucle ---------- */
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w < h ? 72 : 60;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  var camFocus = new THREE.Vector3(0, 1.6, 14);
+  var last = performance.now();
+  var spin = reduceMotion ? 0.1 : 0.5;
+
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    var t = now / 1000;
+
+    var fx = isChatFocused ? 0 : (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + joy.x;
+    var fy = isChatFocused ? 0 : (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0) - joy.y;
+    var mag = Math.min(1, Math.hypot(fx, fy));
+    var moving = 0;
+    if (mag > 0.06) {
+      var nx = fx / Math.hypot(fx, fy), ny = fy / Math.hypot(fx, fy);
+      var sn = Math.sin(yaw), cs = Math.cos(yaw);
+      var mx = -sn * ny + cs * nx;
+      var mz = -cs * ny - sn * nx;
+      var speed = (keys.shift ? 10 : 6) * mag;
+      player.position.x += mx * speed * dt;
+      player.position.z += mz * speed * dt;
+      facing += angDiff(facing, Math.atan2(mx, mz)) * Math.min(1, dt * 12);
+      moving = Math.min(1, mag * 1.2);
+    }
+    var pr = Math.hypot(player.position.x, player.position.z);
+    if (pr > 35) { player.position.x *= 35 / pr; player.position.z *= 35 / pr; }
+    if (pr < 3.6 && pr > 0.001) { player.position.x *= 3.6 / pr; player.position.z *= 3.6 / pr; }
+    player.rotation.y = facing;
+    animateAvatar(player, moving, t, dt);
+
+    bots.forEach(function (bot) {
+      var av = bot.av;
+      var dx = bot.target.x - av.position.x, dz = bot.target.z - av.position.z;
+      var dd = Math.hypot(dx, dz);
+      var m = 0;
+      if (bot.wait > 0) {
+        bot.wait -= dt;
+      } else if (dd < 0.6) {
+        bot.wait = 1 + Math.random() * 3;
+        pickTarget(bot);
+      } else {
+        av.position.x += (dx / dd) * bot.speed * dt;
+        av.position.z += (dz / dd) * bot.speed * dt;
+        av.rotation.y += angDiff(av.rotation.y, Math.atan2(dx, dz)) * Math.min(1, dt * 8);
+        m = 1;
+      }
+      animateAvatar(av, m, t + bot.speed * 3, dt);
+    });
+
+    Object.keys(remotes).forEach(function (id) {
+      var rm = remotes[id], rav = rm.av;
+      var rdx = rm.tx - rav.position.x, rdz = rm.tz - rav.position.z;
+      var rd = Math.hypot(rdx, rdz);
+      if (rd > 12) { rav.position.x = rm.tx; rav.position.z = rm.tz; rdx = 0; rdz = 0; rd = 0; }
+      var rk = Math.min(1, dt * 9);
+      rav.position.x += rdx * rk; rav.position.z += rdz * rk;
+      if (rd > 0.12) rav.rotation.y += angDiff(rav.rotation.y, Math.atan2(rdx, rdz)) * Math.min(1, dt * 10);
+      else rav.rotation.y += angDiff(rav.rotation.y, rm.ta) * Math.min(1, dt * 6);
+      animateAvatar(rav, rd > 0.12 ? 1 : 0, t, dt);
+    });
+
+    sendClock += dt;
+    if (room && sendClock > 0.1) {
+      sendClock = 0;
+      var sx = Math.round(player.position.x * 100) / 100;
+      var sz = Math.round(player.position.z * 100) / 100;
+      var sa = Math.round(facing * 100) / 100;
+      var skey = sx + '|' + sz + '|' + sa + '|' + curColor + '|' + myName;
+      if (skey !== lastSent) {
+        lastSent = skey;
+        room.presence({ x: sx, z: sz, a: sa, c: curColor, n: myName }).catch(function () {});
+      }
+    }
+
+    monument.rotation.y += dt * spin;
+    crystal.position.y = 5 + Math.sin(t * 1.4) * 0.25;
+    cage.position.y = crystal.position.y;
+    cage.rotation.y -= dt * spin * 1.4;
+    planetRing.rotation.z += dt * 0.02;
+
+    portals.forEach(function (p) {
+      p.disc.material.opacity = 0.24 + (reduceMotion ? 0 : Math.sin(t * 2 + p.def.ang) * 0.08);
+      p.torus.rotation.z += dt * (reduceMotion ? 0.05 : 0.4);
+      p.cool -= dt;
+      var pd = Math.hypot(player.position.x - p.group.position.x, player.position.z - p.group.position.z);
+      if (pd < 3.2 && p.cool <= 0) { p.cool = 6; showToast(p.def); }
+    });
+
+    var k = 1 - Math.exp(-dt * 9);
+    camFocus.x += (player.position.x - camFocus.x) * k;
+    camFocus.z += (player.position.z - camFocus.z) * k;
+    camFocus.y = 1.7;
+    var cp = Math.cos(pitch);
+    camera.position.set(camFocus.x + Math.sin(yaw) * cp * dist, camFocus.y + Math.sin(pitch) * dist, camFocus.z + Math.cos(yaw) * cp * dist);
+    camera.lookAt(camFocus);
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

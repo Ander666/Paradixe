@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070816">
+<meta name="description" content="Paradixe.space — Un universo digital. Infinitas posibilidades por explorar. Plaza Central es la primera experiencia 3D multijugador desde el navegador.">
+<title>Paradixe.space — Un universo digital</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#070816; --ink:#e8ecff; --muted:#98a0cf; --accent:#ffb347; --portal:#4fe3ff;
+  --panel:rgba(12,14,38,0.7); --line:rgba(152,160,207,0.22); --card:rgba(18,20,55,0.8);
+  --font-d:"Chakra Petch",system-ui,sans-serif; --font-b:"DM Sans",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--font-b);scroll-behavior:smooth}
+body{overflow-x:hidden}
+a{color:var(--portal);text-decoration:none}
+a:hover{text-decoration:underline}
+.hero{
+  position:relative; min-height:92vh; display:grid; place-items:center; padding: 80px 20px 40px;
+  background:
+    radial-gradient(800px 500px at 20% 20%, rgba(79,227,255,0.18), transparent 60%),
+    radial-gradient(600px 400px at 80% 30%, rgba(255,179,71,0.18), transparent 60%),
+    radial-gradient(900px 600px at 50% 100%, rgba(154,123,255,0.14), transparent 70%),
+    var(--bg);
+}
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:14px 22px;background:rgba(7,8,22,0.6);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav b{font-family:var(--font-d);letter-spacing:0.32em;color:var(--accent)}
+.nav span{font-size:11px;color:var(--muted);letter-spacing:0.08em;margin-left:8px}
+.hero-card{
+  max-width:980px; width:100%; text-align:center;
+  background:var(--panel); border:1px solid var(--line); border-radius:28px; padding: 48px 28px;
+  backdrop-filter:blur(14px); box-shadow:0 20px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.kicker{font:600 11px var(--font-d);letter-spacing:0.28em;color:var(--portal);text-transform:uppercase;margin-bottom:14px}
+.h1{font:700 clamp(36px,8vw,72px)/0.9 var(--font-d); letter-spacing:0.06em; margin:0; }
+.h1 span{color:var(--accent)}
+.sub{font-size:clamp(18px,2.8vw,22px); color:var(--ink); margin:18px auto 0; max-width:680px; line-height:1.4}
+.sub small{display:block;margin-top:10px;color:var(--muted);font-size:14px}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:28px}
+.btn{
+  appearance:none; border:1px solid var(--line); border-radius:999px; padding:14px 22px;
+  font:600 13px var(--font-d); letter-spacing:0.08em; cursor:pointer; transition:.2s;
+}
+.btn.primary{background:var(--ink);color:#0a0c26;border-color:var(--ink)}
+.btn.primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(232,236,255,0.25)}
+.btn.ghost{background:var(--panel);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--portal); color:var(--portal)}
+
+.section{max-width:1100px;margin:0 auto;padding:64px 20px}
+.section h2{font:600 28px/1.1 var(--font-d);letter-spacing:0.06em;margin:0 0 10px}
+.section .lead{color:var(--muted);font-size:15px;line-height:1.6;max-width:780px;margin-bottom:28px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px 18px;
+  backdrop-filter:blur(10px); transition:.2s;
+}
+.card:hover{transform:translateY(-2px);border-color:rgba(79,227,255,0.4)}
+.card h3{margin:0 0 6px;font:600 16px var(--font-d);letter-spacing:0.04em}
+.card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.5}
+.tag{display:inline-block;font:600 10px var(--font-d);letter-spacing:0.12em;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);margin-bottom:10px}
+
+.tech{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px}
+.tech div{background:rgba(12,14,38,0.5);border:1px dashed var(--line);border-radius:12px;padding:12px}
+.tech b{font:600 12px var(--font-d);color:var(--portal);display:block;margin-bottom:4px}
+.tech span{font-size:12px;color:var(--muted)}
+
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.badge{font:500 11px var(--font-d);letter-spacing:0.06em;padding:6px 10px;border-radius:999px;background:rgba(79,227,255,0.1);border:1px solid rgba(79,227,255,0.22);color:var(--portal)}
+
+footer{border-top:1px solid var(--line);padding:28px 20px;color:var(--muted);font-size:12px;text-align:center}
+footer b{color:var(--ink);font-family:var(--font-d);letter-spacing:0.14em}
+</style>
+</head>
+<body>
+
+<div class="nav"><div><b>PARADIXE.SPACE</b><span>Documento oficial · v0.2</span></div><div style="font-size:11px;color:var(--muted)">Medellín 2026 · Plaza Central</div></div>
+
+<div class="hero">
+  <div class="hero-card">
+    <div class="kicker">Universo digital en construcción</div>
+    <h1 class="h1"><span>PARADIXE</span>.SPACE</h1>
+    <p class="sub">Un universo digital. Infinitas posibilidades por explorar.
+      <small>Plaza Central es la primera puerta de entrada a un ecosistema de mundos interconectados accesibles desde el navegador.</small>
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="/">ENTRAR A PLAZA CENTRAL →</a>
+      <a class="btn ghost" href="#vision">LEER VISIÓN</a>
+    </div>
+    <div class="badge-row" style="justify-content:center">
+      <span class="badge">Three.js + WebGL</span><span class="badge">Node.js + WebSocket</span><span class="badge">Hasta 100 jugadores</span><span class="badge">Chat proximidad v0.2</span><span class="badge">Mobile + Joystick</span>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="vision">
+  <h2>Visión del proyecto</h2>
+  <p class="lead">Paradixe.space es un proyecto tecnológico orientado al desarrollo de un universo virtual interactivo en tres dimensiones, concebido para conectar personas, experiencias y espacios digitales desde una misma plataforma. A través de entornos inmersivos, avatares personalizables y experiencias multijugador, busca construir un espacio donde la exploración, el entretenimiento, la interacción social y la creatividad converjan en un ecosistema digital en constante evolución.</p>
+  
+  <div class="grid">
+    <div class="card"><span class="tag">Primera experiencia</span><h3>Plaza Central</h3><p>Escena 3D con edificios, cielo estrellado, plaza circular y monumento central. Avatares con nombre y 6 colores. Movimiento con teclado, joystick táctil y cámara por arrastre. Multijugador por WebSocket. 4 portales conceptuales.</p></div>
+    <div class="card"><span class="tag" style="color:#ffb347;border-color:rgba(255,179,71,0.3)">Estado actual</span><h3>En desarrollo honesto</h3><p>Sin cuentas persistentes, sin base de datos, sin economía virtual todavía. Una sola sala para todos. Los portales aún no llevan a otros mundos. Servicio gratuito puede dormirse. Presentado como proyecto en desarrollo, no como metaverso terminado.</p></div>
+    <div class="card"><span class="tag" style="color:#7dffb2;border-color:rgba(125,255,178,0.3)">Arquitectura</span><h3>Modular y progresiva</h3><p>Un solo servicio Node entrega la página y reparte posiciones. Limpia nombres, limita mensajes por segundo (40/s), desconecta zombies, max 10 conexiones por IP. Solo expone / y /health.</p></div>
+  </div>
+</div>
+
+<div class="section" id="mundos">
+  <h2>Mundos proyectados</h2>
+  <p class="lead">Los cuatro portales de Plaza Central representan líneas de expansión. En el código revisado no se demuestra que estén desarrollados como experiencias independientes todavía — son conceptos para diseñar de forma modular.</p>
+  <div class="grid">
+    <div class="card" style="border-color:rgba(79,227,255,0.35)"><span class="tag">Portal 45°</span><h3 style="color:#4fe3ff">Arcadia</h3><p>Espacio orientado a juegos y experiencias lúdicas. Próximamente: minijuegos, retos y arcade social.</p><div class="badge-row"><span class="badge">Próximamente: Arcadia</span></div></div>
+    <div class="card" style="border-color:rgba(125,255,178,0.35)"><span class="tag">Portal 135°</span><h3 style="color:#7dffb2">Selva Viva</h3><p>Entorno temático inspirado en la naturaleza. Exploración, sonido espacial y biomas.</p><div class="badge-row"><span class="badge">Próximamente: Selva Viva</span></div></div>
+    <div class="card" style="border-color:rgba(255,95,168,0.35)"><span class="tag">Portal 225°</span><h3 style="color:#ff5fa8">Ciudad Neón</h3><p>Espacio social con identidad visual urbana y futurista. Cyberpunk + solarpunk + glassmorphism.</p><div class="badge-row"><span class="badge">Próximamente: Ciudad Neón</span></div></div>
+    <div class="card" style="border-color:rgba(154,123,255,0.35)"><span class="tag">Portal 315°</span><h3 style="color:#9a7bff">Archivo</h3><p>Biblioteca o espacio para contenidos y creaciones de la comunidad.</p><div class="badge-row"><span class="badge">Próximamente: Archivo</span></div></div>
+  </div>
+</div>
+
+<div class="section" id="tech">
+  <h2>Base tecnológica identificada</h2>
+  <div class="tech">
+    <div><b>Frontend</b><span>HTML, CSS, JavaScript</span></div>
+    <div><b>Gráficos 3D</b><span>Three.js r128 + WebGL</span></div>
+    <div><b>Servidor</b><span>Node.js HTTP</span></div>
+    <div><b>Tiempo real</b><span>WebSocket ws 8.18.0 + chat proximidad 18m</span></div>
+    <div><b>Personalización</b><span>Nombre (12 chars) + 6 colores + chat</span></div>
+    <div><b>Multijugador</b><span>Sincronización x,z,a + rate limit + limpieza</span></div>
+  </div>
+  <p class="lead" style="margin-top:20px">En los archivos revisados no se identifican cuentas persistentes, perfiles guardados, inventario ni economía virtual. El servidor configura MAX_PLAYERS=100 como parámetro, no como garantía de rendimiento. El frontend original venía como index-1.html y se corrigió a index.html para desplegar.</p>
+  <div class="cta" style="justify-content:flex-start">
+    <a class="btn primary" href="/">JUGAR AHORA EN PLAZA CENTRAL</a>
+    <a class="btn ghost" href="/health">/health debe responder ok</a>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Posicionamiento</h2>
+  <p class="lead"><b>Paradixe.space puede presentarse como una plataforma de mundo virtual social en 3D accesible desde el navegador</b>, con una arquitectura inicial que permite explorar la posibilidad de conectar experiencias temáticas. Su potencial está en evolucionar hacia un universo de espacios interconectados, sin afirmar todavía que todas esas funciones estén completas. En esta etapa, es más preciso describir Paradixe como un proyecto en desarrollo con una primera experiencia 3D y una visión de expansión.</p>
+</div>
+
+<footer>
+  <b>PARADIXE.SPACE</b> — Un universo digital. Infinitas posibilidades por explorar.<br>
+  Documento de trabajo · Medellín 2026 · Por Ander Song · Plaza Central v0.2 con chat de proximidad<br>
+  <span style="opacity:0.7">Explora nuevos mundos. Conecta experiencias. Descubre Paradixe.</span>
+</footer>
+
+</body>
+</html>

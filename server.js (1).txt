@@ -1,0 +1,282 @@
+'use strict';
+
+// Paradixe.space v0.2 - Plaza Central + Chat de proximidad + Portales con toast
+// Un solo servicio Node entrega la página y conecta jugadores por WebSocket
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { WebSocketServer } = require('ws');
+
+const PORT = Number(process.env.PORT) || 3000;
+const MAX_PLAYERS = Number(process.env.MAX_PLAYERS) || 100;
+const MAX_PER_IP = 10;
+const MAX_MSGS_PER_SEC = 40;
+const WORLD_RADIUS = 35;
+const COLORS = 6;
+const TAU = Math.PI * 2;
+
+// Nuevo: chat de proximidad
+const CHAT_RADIUS = 18; // unidades del mundo
+const MAX_CHAT_LEN = 120;
+const MAX_CHAT_PER_WINDOW = 5;
+const CHAT_WINDOW_MS = 10000;
+
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const INDEX = path.join(__dirname, 'index.html');
+const LANDING = path.join(__dirname, 'landing.html');
+
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' ws: wss:",
+  "frame-ancestors 'none'"
+].join('; ');
+
+/* ---------- HTTP: solo / , /index.html , /landing.html y /health ---------- */
+const server = http.createServer((req, res) => {
+  const pathname = (req.url || '/').split('?')[0];
+
+  if (pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('ok');
+    return;
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    res.end();
+    return;
+  }
+
+  // Rutas permitidas
+  let filePath = null;
+  if (pathname === '/' || pathname === '/index.html') filePath = INDEX;
+  else if (pathname === '/landing' || pathname === '/landing.html') filePath = LANDING;
+  else {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('No encontrado');
+    return;
+  }
+
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      // Si landing no existe, devuelve index
+      if (filePath === LANDING) {
+        fs.readFile(INDEX, (err2, data2) => {
+          if (err2) {
+            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end('Error al leer la página');
+            return;
+          }
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            'Content-Security-Policy': CSP,
+            'X-Content-Type-Options': 'nosniff',
+            'Referrer-Policy': 'no-referrer'
+          });
+          res.end(data2);
+        });
+        return;
+      }
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Error al leer la página');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': CSP,
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer'
+    });
+    res.end(data);
+  });
+});
+
+/* ---------- Jugadores ---------- */
+const players = new Map();
+const perIp = new Map();
+let nextId = 1;
+
+function clientIp(req) {
+  const xf = req.headers['x-forwarded-for'];
+  if (typeof xf === 'string' && xf) return xf.split(',')[0].trim();
+  return req.socket.remoteAddress || 'desconocida';
+}
+function cleanName(s) {
+  return String(s == null ? '' : s)
+    .replace(/[^A-Za-z0-9À-ɏ _.\-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 12);
+}
+function cleanChat(s) {
+  return String(s == null ? '' : s)
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, MAX_CHAT_LEN);
+}
+function num(v, fallback) {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
+function r2(v) {
+  return Math.round(v * 100) / 100;
+}
+function pack(p) {
+  return [p.id, r2(p.x), r2(p.z), r2(p.a), p.c, p.n];
+}
+function send(ws, obj) {
+  if (ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+const wss = new WebSocketServer({
+  server,
+  path: '/ws',
+  maxPayload: 1024,
+  verifyClient: (info) => {
+    const origin = info.origin || info.req.headers.origin;
+    if (!origin) return true;
+    try {
+      const host = new URL(origin).host;
+      return host === info.req.headers.host || ALLOWED_ORIGINS.includes(host);
+    } catch (e) {
+      return false;
+    }
+  }
+});
+
+wss.on('connection', (ws, req) => {
+  const ip = clientIp(req);
+  if (players.size >= MAX_PLAYERS || (perIp.get(ip) || 0) >= MAX_PER_IP) {
+    ws.close(1013, 'lleno');
+    return;
+  }
+  perIp.set(ip, (perIp.get(ip) || 0) + 1);
+
+  const id = (nextId++).toString(36);
+  const p = {
+    id,
+    ws,
+    ip,
+    x: 0,
+    z: 14,
+    a: 0,
+    c: 0,
+    n: 'Jugador',
+    has: false,
+    dirty: false,
+    count: 0,
+    alive: true,
+    chatTimes: [] // para rate limit de chat
+  };
+  players.set(id, p);
+
+  const others = [];
+  players.forEach((q) => { if (q !== p && q.has) others.push(pack(q)); });
+  send(ws, { t: 'hello', id, p: others });
+
+  ws.on('pong', () => { p.alive = true; });
+
+  ws.on('message', (data, isBinary) => {
+    if (isBinary) return;
+    p.count++;
+    if (p.count > MAX_MSGS_PER_SEC) return;
+    let m;
+    try { m = JSON.parse(data.toString()); } catch (e) { return; }
+    if (!m || typeof m.t !== 'string') return;
+
+    // Movimiento
+    if (m.t === 'p') {
+      let x = num(m.x, p.x);
+      let z = num(m.z, p.z);
+      const r = Math.hypot(x, z);
+      if (r > WORLD_RADIUS) { x *= WORLD_RADIUS / r; z *= WORLD_RADIUS / r; }
+      p.x = x;
+      p.z = z;
+      p.a = num(m.a, p.a) % TAU;
+      if (Number.isInteger(m.c) && m.c >= 0 && m.c < COLORS) p.c = m.c;
+      p.n = cleanName(m.n) || p.n;
+      p.has = true;
+      p.dirty = true;
+      return;
+    }
+
+    // Chat de proximidad: t='c' o 'chat'
+    if (m.t === 'c' || m.t === 'chat') {
+      if (!p.has) return; // debe haberse movido al menos una vez
+      const raw = cleanChat(m.text || m.m || '');
+      if (!raw) return;
+
+      // Rate limit chat
+      const now = Date.now();
+      p.chatTimes = p.chatTimes.filter(t => now - t < CHAT_WINDOW_MS);
+      if (p.chatTimes.length >= MAX_CHAT_PER_WINDOW) {
+        send(ws, { t: 'sys', text: 'Chat: espera un momento para seguir escribiendo.' });
+        return;
+      }
+      p.chatTimes.push(now);
+
+      // Broadcast por proximidad
+      const payload = { t: 'c', id: p.id, n: p.n, c: p.c, text: raw, x: r2(p.x), z: r2(p.z) };
+      players.forEach((q) => {
+        if (!q.has) return;
+        // Distancia: emisor a receptor
+        const dx = q.x - p.x;
+        const dz = q.z - p.z;
+        const dist = Math.hypot(dx, dz);
+        // El emisor siempre se ve a sí mismo, los demás solo si están cerca
+        if (q === p || dist <= CHAT_RADIUS) {
+          send(q.ws, payload);
+        }
+      });
+      return;
+    }
+  });
+
+  ws.on('close', () => {
+    players.delete(id);
+    const left = (perIp.get(ip) || 1) - 1;
+    if (left <= 0) perIp.delete(ip); else perIp.set(ip, left);
+    if (p.has) players.forEach((q) => send(q.ws, { t: 'l', id }));
+  });
+  ws.on('error', () => {});
+});
+
+// Cada 100 ms se envía a todos lo que cambió.
+setInterval(() => {
+  const dirty = [];
+  players.forEach((p) => { if (p.dirty) { p.dirty = false; dirty.push(p); } });
+  if (!dirty.length) return;
+  players.forEach((q) => {
+    const list = dirty.filter((p) => p !== q).map(pack);
+    if (list.length) send(q.ws, { t: 's', p: list });
+  });
+}, 100);
+
+// Reinicia el contador de mensajes cada segundo.
+setInterval(() => { players.forEach((p) => { p.count = 0; }); }, 1000);
+
+// Cierra conexiones que ya no responden.
+setInterval(() => {
+  players.forEach((p) => {
+    if (!p.alive) { p.ws.terminate(); return; }
+    p.alive = false;
+    try { p.ws.ping(); } catch (e) {}
+  });
+}, 30000);
+
+server.listen(PORT, () => console.log('Paradixe v0.2 escuchando en el puerto ' + PORT));
+
+process.on('SIGTERM', () => {
+  wss.close();
+  server.close(() => process.exit(0));
+});
