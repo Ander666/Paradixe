@@ -1,26 +1,16 @@
-# Paradixe.space v0.2
+# Paradixe
 
-Un universo digital. Infinitas posibilidades por explorar.
+Un mundo 3D compartido que corre en el navegador. Un solo servicio Node entrega la página y conecta a los jugadores por WebSocket.
 
-Plaza Central es la primera experiencia 3D multijugador que corre en el navegador. Un solo servicio Node entrega la página y conecta jugadores por WebSocket.
+## Archivos
 
-## Qué hay en v0.2 (lo que pediste)
+- `index.html`: el mundo 3D y la conexión con el servidor.
+- `server.js`: entrega la página y reparte las posiciones de los jugadores.
+- `package.json`: dependencias (solo `ws`) y el comando de inicio.
 
-1. **Fix index.html** - El servidor buscaba `index.html` pero venía como `index-1.html`. Ahora los 3 archivos están alineados y listos para GitHub.
-2. **Chat de proximidad** - Nuevo. Solo te leen jugadores a <18m. Rate limit 5 mensajes / 10s, 120 chars max, filtro de <>.
-3. **Portales con toast mejorado** - Ahora muestra "Próximamente: Arcadia" + nota + badge + mensaje en chat sistema.
-4. **Landing oficial** - `landing.html` con descripción oficial, visión, 4 mundos proyectados, base tecnológica y posicionamiento honesto.
+Mantén los tres archivos juntos, en la raíz del repositorio.
 
-## Archivos para GitHub (raíz del repo)
-
-- `index.html` - Plaza Central v0.2 con chat
-- `server.js` - HTTP + WebSocket + chat proximidad
-- `package.json` - v0.2.0, dependencia ws 8.18.0
-- `landing.html` - Landing oficial (opcional, ruta /landing.html)
-
-Mantén los 3 primeros juntos en la raíz.
-
-## Probar en celular con Termux
+## Probarlo en el celular con Termux
 
 ```
 pkg install nodejs
@@ -28,35 +18,32 @@ npm install
 npm start
 ```
 
-Abre http://localhost:3000 -> Plaza Central
-Abre http://localhost:3000/landing.html -> Landing oficial
-/health debe responder ok
+Abre `http://localhost:3000` en el navegador del mismo celular. Para probar con otro dispositivo en tu red, usa la IP del celular en lugar de `localhost`.
 
-## Publicar con tu dominio paradixe.space
+## Publicarlo con tu dominio
 
-1. Repo en GitHub, sube los 3 archivos (Add file > Upload files)
-2. Hosting Node (Render, Railway, Fly.io):
-   - Install: npm install
-   - Start: npm start
-   - PORT lo pone el hosting, ya lo lee
-3. Dominio personalizado: agrega paradixe.space en el hosting, copia los DNS al panel donde compraste el dominio
-4. Si usas www.paradixe.space, agrégalo a ALLOWED_ORIGINS=www.paradixe.space en env vars del hosting
+1. Crea un repositorio en GitHub y sube los tres archivos desde la web (Add file, Create new file o Upload files).
+2. En un hosting que ejecute Node (por ejemplo Render, Railway o Fly.io) crea un servicio nuevo desde ese repositorio.
+   - Comando de instalación: `npm install`
+   - Comando de inicio: `npm start`
+   - El hosting define el puerto con la variable `PORT`; el servidor ya la lee.
+3. Cuando el servicio funcione con su dirección de prueba, entra a su sección de dominios personalizados y agrega `paradixe.space`.
+4. El hosting te mostrará los registros DNS que debes crear. Agrégalos en el panel donde compraste el dominio. Los cambios pueden tardar desde minutos hasta unas horas.
+5. El hosting activa el candado HTTPS por su cuenta. Con HTTPS el multijugador usa `wss://` sin que tengas que cambiar nada.
 
-HTTPS lo activa el hosting. El cliente usa wss:// automático.
+Comprueba que el servicio responde abriendo `/health`: debe mostrar `ok`.
 
-## Qué incluye / qué no
+Si también usas `www.paradixe.space`, agrégalo a la variable de entorno `ALLOWED_ORIGINS` (por ejemplo `www.paradixe.space`) y también como dominio personalizado en el hosting.
 
-Incluye: hasta 100 jugadores (MAX_PLAYERS), 10 por IP, limpieza de nombres, límite mundo radio 35, 40 msgs/s, ping/pong, solo expone / y /health, chat proximidad 18m.
+## Qué incluye
 
-No incluye aún: cuentas, progreso, base de datos, múltiples salas, portales funcionales a otros mundos, inventario/economía. Al cerrar se pierde todo. Servicio gratis puede dormirse.
+- Hasta 100 jugadores a la vez (cambia `MAX_PLAYERS` para ajustarlo) y hasta 10 conexiones por dirección IP.
+- El servidor limpia los nombres, mantiene a cada jugador dentro de la plaza, limita los mensajes por segundo y desconecta las conexiones que dejan de responder.
+- Solo entrega la página principal y `/health`; ningún otro archivo del proyecto queda expuesto.
 
-## Próximos pasos sugeridos (de tu doc oficial)
+## Qué no incluye todavía
 
-- Verificar multijugador real y rendimiento
-- Definir qué social aporta valor además de caminar (emotes, fotos, voz?)
-- Diseñar mundos de forma modular para conectar progresivamente
-- Comunicar estado honesto: experiencia inicial en desarrollo con potencial de expansión
-
----
-Medellín 2026 · Ander Song
-Explora nuevos mundos. Conecta experiencias. Descubre Paradixe.
+- No guarda nada: sin cuentas, sin progreso, sin base de datos. Al cerrar la página se pierde todo.
+- Hay una sola sala para todos los jugadores.
+- Los portales de la plaza todavía no llevan a otros mundos.
+- Un servicio gratuito puede dormirse tras un tiempo sin visitas; al despertar tarda en responder y corta las conexiones abiertas. Para que esté siempre activo hace falta un plan de pago.
